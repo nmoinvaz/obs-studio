@@ -216,25 +216,45 @@ pub fn to_length_prefixed(
     priority: i32,
     rate: impl Fn(u8) -> UnitRating,
 ) -> LengthPrefixed {
-    let mut out = LengthPrefixed {
-        payload: Vec::with_capacity(data.len() + 16),
-        keyframe,
-        priority,
-    };
+    let mut payload = Vec::with_capacity(data.len() + LENGTH_PREFIX_SLACK);
+    let packet = write_length_prefixed(data, keyframe, priority, rate, |bytes| {
+        payload.extend_from_slice(bytes);
+    });
+    LengthPrefixed {
+        payload,
+        keyframe: packet.keyframe,
+        priority: packet.priority,
+    }
+}
+
+/// Room to reserve past `data.len()` for the output of
+/// [`write_length_prefixed`]: a unit behind a 3-byte start code grows by one
+/// byte.
+pub const LENGTH_PREFIX_SLACK: usize = 16;
+
+/// [`to_length_prefixed`], with the payload passed to `write` piece by
+/// piece, in order. Returns the `keyframe` and `priority` after the walk.
+pub fn write_length_prefixed(
+    data: &[u8],
+    keyframe: bool,
+    priority: i32,
+    rate: impl Fn(u8) -> UnitRating,
+    mut write: impl FnMut(&[u8]),
+) -> UnitRating {
+    let mut packet = UnitRating { keyframe, priority };
     for nal in nal_units(data) {
         let r = rate(nal.header(data));
         if r.keyframe {
-            out.keyframe = true;
+            packet.keyframe = true;
         }
         // C: return priority > new_priority ? priority : new_priority;
-        out.priority = out.priority.max(r.priority);
+        packet.priority = packet.priority.max(r.priority);
         let unit = &data[nal.start..nal.end];
         // C: s_wb32(s, (uint32_t)nal_size)
-        out.payload
-            .extend_from_slice(&(unit.len() as u32).to_be_bytes());
-        out.payload.extend_from_slice(unit);
+        write(&(unit.len() as u32).to_be_bytes());
+        write(unit);
     }
-    out
+    packet
 }
 
 /// `obs_parse_*_packet_priority`: `priority` raised to the highest unit

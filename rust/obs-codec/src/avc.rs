@@ -58,6 +58,16 @@ pub fn to_avcc(data: &[u8], keyframe: bool, priority: i32) -> LengthPrefixed {
     nal::to_length_prefixed(data, keyframe, priority, rate)
 }
 
+/// [`to_avcc`], with the AVCC bytes passed to `write` piece by piece.
+pub fn write_avcc(
+    data: &[u8],
+    keyframe: bool,
+    priority: i32,
+    write: impl FnMut(&[u8]),
+) -> UnitRating {
+    nal::write_length_prefixed(data, keyframe, priority, rate, write)
+}
+
 /// `has_start_code`: whether `data` opens with `00 00 01` or `00 00 00 01`.
 /// Needs at least 4 bytes, as the C version reads `data[3]`.
 fn has_start_code(data: &[u8]) -> bool {

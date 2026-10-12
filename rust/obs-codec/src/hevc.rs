@@ -74,6 +74,16 @@ pub fn to_hvcc(data: &[u8], keyframe: bool, priority: i32) -> LengthPrefixed {
     nal::to_length_prefixed(data, keyframe, priority, rate)
 }
 
+/// [`to_hvcc`], with the HVCC bytes passed to `write` piece by piece.
+pub fn write_hvcc(
+    data: &[u8],
+    keyframe: bool,
+    priority: i32,
+    write: impl FnMut(&[u8]),
+) -> UnitRating {
+    nal::write_length_prefixed(data, keyframe, priority, rate, write)
+}
+
 /// `obs_extract_hevc_headers`: VPS, SPS and PPS units go to `header`,
 /// prefix and suffix SEI to `sei`, everything else to `packet`, each with
 /// its start code.
