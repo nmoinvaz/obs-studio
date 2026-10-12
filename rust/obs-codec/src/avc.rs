@@ -8,7 +8,7 @@
 
 use obs_util::bitstream::BitstreamReader;
 
-use crate::nal::{self, Bucket, LengthPrefixed, SplitHeaders, UnitRating, nal_units};
+use crate::nal::{self, Bucket, LengthPrefixed, SplitHeaders, UnitRating, nal_headers, nal_units};
 
 pub const NAL_SLICE: u8 = 1;
 pub const NAL_SLICE_IDR: u8 = 5;
@@ -25,8 +25,8 @@ fn kind(header: u8) -> u8 {
 /// Units before it (SPS, PPS, SEI, ...) are skipped; no slice is `false`.
 #[must_use]
 pub fn keyframe(data: &[u8]) -> bool {
-    for nal in nal_units(data) {
-        let kind = kind(nal.header(data));
+    for header in nal_headers(data) {
+        let kind = kind(header);
         if kind == NAL_SLICE_IDR || kind == NAL_SLICE {
             return kind == NAL_SLICE_IDR;
         }

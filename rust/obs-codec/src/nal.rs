@@ -146,17 +146,7 @@ pub fn nal_units(data: &[u8]) -> impl Iterator<Item = Nal> + '_ {
     let mut pos = find_startcode(data);
     core::iter::from_fn(move || {
         let code_start = pos;
-        while pos < data.len() {
-            let byte = data[pos];
-            pos += 1;
-            if byte != 0 {
-                break;
-            }
-        }
-        if pos == data.len() {
-            return None;
-        }
-        let start = pos;
+        let start = unit_start(data, pos)?;
         let end = start + find_startcode(&data[start..]);
         pos = end;
         Some(Nal {
@@ -164,6 +154,33 @@ pub fn nal_units(data: &[u8]) -> impl Iterator<Item = Nal> + '_ {
             start,
             end,
         })
+    })
+}
+
+/// Where the unit behind the start code at `pos` begins: after the zeros
+/// and one more byte. `None` when that is the end of `data`.
+fn unit_start(data: &[u8], pos: usize) -> Option<usize> {
+    let zeros = data[pos..].iter().take_while(|&&byte| byte == 0).count();
+    let start = pos + zeros + 1;
+    (start < data.len()).then_some(start)
+}
+
+/// The first header byte of each NAL unit of `data`, in order.
+///
+/// The walk is that of [`nal_units`], but the search for a unit's end waits
+/// until the next unit is asked for. `obs_avc_keyframe` and
+/// `obs_hevc_keyframe` read the header before that search and return at the
+/// first slice, so they never scan it.
+pub fn nal_headers(data: &[u8]) -> impl Iterator<Item = u8> + '_ {
+    let mut pos = find_startcode(data);
+    let mut unit = None;
+    core::iter::from_fn(move || {
+        if let Some(start) = unit.take() {
+            pos = start + find_startcode(&data[start..]);
+        }
+        let start = unit_start(data, pos)?;
+        unit = Some(start);
+        Some(data[start])
     })
 }
 

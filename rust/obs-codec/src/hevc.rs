@@ -5,7 +5,7 @@
 //! how it reads a NAL header: the unit type is bits 6..1 of the first of its
 //! two header bytes.
 
-use crate::nal::{self, Bucket, LengthPrefixed, SplitHeaders, UnitRating, nal_units};
+use crate::nal::{self, Bucket, LengthPrefixed, SplitHeaders, UnitRating, nal_headers};
 
 pub const NAL_BLA_W_LP: u8 = 16;
 pub const NAL_RSV_IRAP_VCL23: u8 = 23;
@@ -31,8 +31,8 @@ fn kind(header: u8) -> u8 {
 /// skipped; no such unit is `false`.
 #[must_use]
 pub fn keyframe(data: &[u8]) -> bool {
-    for nal in nal_units(data) {
-        let kind = kind(nal.header(data));
+    for header in nal_headers(data) {
+        let kind = kind(header);
         if kind <= NAL_RSV_IRAP_VCL23 {
             return kind >= NAL_BLA_W_LP;
         }

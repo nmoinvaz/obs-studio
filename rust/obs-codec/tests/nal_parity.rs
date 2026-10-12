@@ -16,7 +16,7 @@
 
 use obs_c_oracle::nal as c;
 use obs_codec::ffi::nal as rs;
-use obs_codec::nal::find_startcode;
+use obs_codec::nal::{find_startcode, nal_headers, nal_units};
 use proptest::prelude::*;
 
 /// An 8-byte-aligned scratch buffer.
@@ -116,6 +116,14 @@ proptest! {
     #[test]
     fn find_startcode_matches_c_on_sparse_codes(data in sparse_codes()) {
         check(&data)?;
+    }
+
+    /// The lazy header walk yields the header of every unit of the full walk.
+    #[test]
+    fn headers_match_units(data in prop_oneof![nal_bytes(), annex_b(), sparse_codes()]) {
+        let headers: Vec<u8> = nal_headers(&data).collect();
+        let units: Vec<u8> = nal_units(&data).map(|nal| nal.header(&data)).collect();
+        prop_assert_eq!(headers, units);
     }
 
     #[test]
